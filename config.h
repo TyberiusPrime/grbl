@@ -32,11 +32,11 @@
 #define DEFAULTS_GENERIC
 
 // Serial baud rate
-#define BAUD_RATE 9600
+#define BAUD_RATE 57600
 
 // Default pin mappings. Grbl officially supports the Arduino Uno only. Other processor types
 // may exist from user-supplied templates or directly user-defined in pin_map.h
-#define PIN_MAP_ARDUINO_UNO
+#define PIN_MAP_TP
 
 // Define runtime command special characters. These characters are 'picked-off' directly from the
 // serial read data stream and are not passed to the grbl line execution parser. Select characters
