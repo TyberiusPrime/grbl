@@ -328,6 +328,24 @@ void report_realtime_status()
     printFloat(print_position[i]);
     if (i < 2) { printPgmString(PSTR(",")); }
   }
+  uint8_t limit_state;
+  limit_state = LIMIT_PIN;
+  limit_state ^= LIMIT_MASK; //FF we have normally closed switches
+  printPgmString(PSTR("LimitX:"));
+  if (limit_state & (1<<X_LIMIT_BIT))
+      printInteger(0);
+  else
+      printInteger(1);
+  printPgmString(PSTR("LimitY:"));
+  if (limit_state & (1<<Y_LIMIT_BIT))
+      printInteger(0);
+  else
+      printInteger(1);
+  printPgmString(PSTR("LimitZ:"));
+  if (limit_state & (1<<Z_LIMIT_BIT))
+      printInteger(0);
+  else
+      printInteger(1);
     
   printPgmString(PSTR(">\r\n"));
 }
