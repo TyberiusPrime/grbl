@@ -330,7 +330,9 @@ void report_realtime_status()
   }
   uint8_t limit_state;
   limit_state = LIMIT_PIN;
-  limit_state ^= LIMIT_MASK; //FF we have normally closed switches
+  #ifdef NORMALY_CLOSED_LIMIT_PINS
+      limit_state ^= LIMIT_MASK; //FF we have normally closed switches 
+  #endif
   printPgmString(PSTR("LimitX:"));
   if (limit_state & (1<<X_LIMIT_BIT))
       printInteger(0);

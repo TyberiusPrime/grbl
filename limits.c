@@ -157,6 +157,9 @@ static void homing_cycle(uint8_t cycle_mask, int8_t pos_dir, bool invert_pin, fl
     
     // Get limit pin state.
     limit_state = LIMIT_PIN;
+    #ifdef NORMALY_CLOSED_LIMIT_PINS
+        limit_state ^= LIMIT_MASK; 
+    #endif
     if (invert_pin) { limit_state ^= LIMIT_MASK; } // If leaving switch, invert to move.
     
     // Set step pins by Bresenham line algorithm. If limit switch reached, disable and

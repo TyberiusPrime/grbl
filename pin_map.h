@@ -238,6 +238,14 @@
   #define PINOUT_INT_vect  PCINT2_vect
   #define PINOUT_PCMSK     PCMSK2 // Pin change interrupt register
   #define PINOUT_MASK ((1<<PIN_RESET)|(1<<PIN_FEED_HOLD)|(1<<PIN_CYCLE_START))
+
+  #define LASER_DDR  DDRD
+  #define LASER_PORT PORTB 
+  #define LASER_PIN 5 // d 13 
+  #define LASER_MASK ((1<<LASER_PIN))
+
+  #define NORMALY_CLOSED_LIMIT_PINS
+        
   
 #endif
 
