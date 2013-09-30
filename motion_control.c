@@ -241,12 +241,20 @@ void mc_go_home()
     if (settings.homing_dir_mask & (1<<Y_DIRECTION_BIT)) { y_dir = 1; }
     else { y_dir = -1; }
   }
+#ifndef NO_Z_AXIS
   if (HOMING_LOCATE_CYCLE & (1<<Z_AXIS)) { 
     if (settings.homing_dir_mask & (1<<Z_DIRECTION_BIT)) { z_dir = 1; }
     else { z_dir = -1; }
   }
+#endif
   mc_line(x_dir*settings.homing_pulloff, y_dir*settings.homing_pulloff, 
           z_dir*settings.homing_pulloff, settings.homing_seek_rate, false);
+#ifndef NO_Z_AXIS
+          z_dir*settings.homing_pulloff
+#else
+          0
+#endif
+          , settings.homing_seek_rate, false, 0);
   st_cycle_start(); // Move it. Nothing should be in the buffer except this motion. 
   plan_synchronize(); // Make sure the motion completes.
   

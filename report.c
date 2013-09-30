@@ -343,11 +343,13 @@ void report_realtime_status()
       printInteger(0);
   else
       printInteger(1);
-  printPgmString(PSTR("LimitZ:"));
-  if (limit_state & (1<<Z_LIMIT_BIT))
-      printInteger(0);
-  else
-      printInteger(1);
-    
+  #ifndef NO_Z_AXIS
+      printPgmString(PSTR("LimitZ:"));
+      if (limit_state & (1<<Z_LIMIT_BIT))
+          printInteger(0);
+      else
+          printInteger(1);
+  #endif
+        
   printPgmString(PSTR(">\r\n"));
 }

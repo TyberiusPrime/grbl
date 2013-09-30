@@ -207,12 +207,15 @@ ISR(TIMER1_COMPA_vect)
       if (out_bits & (1<<Y_DIRECTION_BIT)) { sys.position[Y_AXIS]--; }
       else { sys.position[Y_AXIS]++; }
     }
-    st.counter_z += current_block->steps_z;
-    if (st.counter_z > 0) {
-      out_bits |= (1<<Z_STEP_BIT);
-      st.counter_z -= st.event_count;
-      if (out_bits & (1<<Z_DIRECTION_BIT)) { sys.position[Z_AXIS]--; }
-      else { sys.position[Z_AXIS]++; }
+    #ifndef NO_Z_AXIS
+        st.counter_z += current_block->steps_z;
+        if (st.counter_z > 0) {
+          out_bits |= (1<<Z_STEP_BIT);
+          st.counter_z -= st.event_count;
+          if (out_bits & (1<<Z_DIRECTION_BIT)) { sys.position[Z_AXIS]--; }
+          else { sys.position[Z_AXIS]++; }
+        }
+    #endif
     }
     
     st.step_events_completed++; // Iterate step events

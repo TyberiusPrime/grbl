@@ -140,11 +140,17 @@ static void homing_cycle(uint8_t cycle_mask, int8_t pos_dir, bool invert_pin, fl
   uint8_t out_bits0 = settings.invert_mask;
   out_bits0 ^= (settings.homing_dir_mask & DIRECTION_MASK); // Apply homing direction settings
   if (!pos_dir) { out_bits0 ^= DIRECTION_MASK; }   // Invert bits, if negative dir.
+  if (LIMIT_DDR == STEPPING_DDR) // when stepper and limits share a pin, this becomes necessary
+  {
+      out_bits0 |= LIMIT_MASK;
+  }
   
   // Initialize stepping variables
   int32_t counter_x = -(step_event_count >> 1); // Bresenham counters
   int32_t counter_y = counter_x;
-  int32_t counter_z = counter_x;
+  #ifndef NO_Z_AXIS
+      int32_t counter_z = counter_x;
+  #endif
   uint32_t step_delay = dt-settings.pulse_microseconds;  // Step delay after pulse
   uint32_t step_rate = 0;  // Tracks step rate. Initialized from 0 rate. (in step/min)
   uint32_t trap_counter = MICROSECONDS_PER_ACCELERATION_TICK/2; // Acceleration trapezoid counter
@@ -157,18 +163,19 @@ static void homing_cycle(uint8_t cycle_mask, int8_t pos_dir, bool invert_pin, fl
     
     // Get limit pin state.
     limit_state = LIMIT_PIN;
+     
     #ifdef NORMALY_CLOSED_LIMIT_PINS
         limit_state ^= LIMIT_MASK; 
     #endif
     if (invert_pin) { limit_state ^= LIMIT_MASK; } // If leaving switch, invert to move.
-    
+     
     // Set step pins by Bresenham line algorithm. If limit switch reached, disable and
     // flag for completion.
     if (cycle_mask & (1<<X_AXIS)) {
       counter_x += steps[X_AXIS];
       if (counter_x > 0) {
-        if (limit_state & (1<<X_LIMIT_BIT)) { out_bits ^= (1<<X_STEP_BIT); }
-        else { cycle_mask &= ~(1<<X_AXIS); }
+        if (limit_state & (1<<X_LIMIT_BIT)) { out_bits ^= (1<<X_STEP_BIT); } // make another step. Otherwise the step pin is set to whatever it was in out_bits0, so stays constant
+        else { cycle_mask &= ~(1<<X_AXIS); } // mark this axis as finished
         counter_x -= step_event_count;
       }
     }
@@ -176,18 +183,20 @@ static void homing_cycle(uint8_t cycle_mask, int8_t pos_dir, bool invert_pin, fl
       counter_y += steps[Y_AXIS];
       if (counter_y > 0) {
         if (limit_state & (1<<Y_LIMIT_BIT)) { out_bits ^= (1<<Y_STEP_BIT); }
-        else { cycle_mask &= ~(1<<Y_AXIS); }
+        else { cycle_mask &= ~(1<<Y_AXIS);}
         counter_y -= step_event_count;
       }
     }
-    if (cycle_mask & (1<<Z_AXIS)) {
-      counter_z += steps[Z_AXIS];
-      if (counter_z > 0) {
-        if (limit_state & (1<<Z_LIMIT_BIT)) { out_bits ^= (1<<Z_STEP_BIT); }
-        else { cycle_mask &= ~(1<<Z_AXIS); }
-        counter_z -= step_event_count;
-      }
-    }        
+    #ifndef NO_Z_AXIS
+        if (cycle_mask & (1<<Z_AXIS)) {
+          counter_z += steps[Z_AXIS];
+          if (counter_z > 0) {
+            if (limit_state & (1<<Z_LIMIT_BIT)) { out_bits ^= (1<<Z_STEP_BIT); }
+            else { cycle_mask &= ~(1<<Z_AXIS); }
+            counter_z -= step_event_count;
+          }
+        }        
+    #endif
     
     // Check if we are done or for system abort
     if (!(cycle_mask) || (sys.execute & EXEC_RESET)) { return; }

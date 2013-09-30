@@ -27,6 +27,8 @@
 #ifndef defaults_h
 #define defaults_h
 
+#include "pin_map.h"
+
 #ifdef DEFAULTS_GENERIC
   // Grbl generic default settings. Should work across different machines.
   #define DEFAULT_X_STEPS_PER_MM 250.0
@@ -38,7 +40,11 @@
   #define DEFAULT_FEEDRATE 250.0
   #define DEFAULT_ACCELERATION (10.0*60*60) // 10 mm/min^2
   #define DEFAULT_JUNCTION_DEVIATION 0.05 // mm
-  #define DEFAULT_STEPPING_INVERT_MASK ((1<<Y_DIRECTION_BIT)|(1<<Z_DIRECTION_BIT))
+  #ifndef NO_Z_AXIS
+      #define DEFAULT_STEPPING_INVERT_MASK ((1<<Y_DIRECTION_BIT)|(1<<Z_DIRECTION_BIT))
+  #else
+      #define DEFAULT_STEPPING_INVERT_MASK ((1<<Y_DIRECTION_BIT))
+  #endif
   #define DEFAULT_REPORT_INCHES 0 // false
   #define DEFAULT_AUTO_START 1 // true
   #define DEFAULT_INVERT_ST_ENABLE 0 // false
