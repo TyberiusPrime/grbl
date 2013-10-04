@@ -1,3 +1,9 @@
+Changes from parent
+------------
+* This is an adaption of GRBL for laser cutting.
+* Target features are Pulses-per-inch control of the laser and raster engraving
+* so far, all we have is an adaptation to my hardware (arduino nano und weird adapter to stepstick stepper drivers)
+
 #Grbl - An embedded g-code interpreter and motion-controller for the Arduino/AVR328 microcontroller
 ------------
 
