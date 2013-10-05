@@ -25,6 +25,8 @@
 #ifndef pin_map_h
 #define pin_map_h
 
+#include "config.h"
+
 #ifdef PIN_MAP_ARDUINO_UNO // AVR 328p, Officially supported by Grbl.
 
   // Serial port pins
@@ -177,17 +179,23 @@
   #define SERIAL_UDRE USART_UDRE_vect
 
   // NOTE: All step bit and direction pins must be on the same port.
-  #define STEPPING_DDR       DDRD
-  #define STEPPING_PORT      PORTD
-  #define X_STEP_BIT         5  // Uno Digital Pin 2
-  #define Y_STEP_BIT         7  // Uno Digital Pin 3
-  #define Z_STEP_BIT         4  // Uno Digital Pin 4
-  #define X_DIRECTION_BIT    4  // Uno Digital Pin 5
-  #define Y_DIRECTION_BIT    6  // Uno Digital Pin 6
-  #define Z_DIRECTION_BIT    7  // Uno Digital Pin 7
-  #define STEP_MASK ((1<<X_STEP_BIT)|(1<<Y_STEP_BIT)|(1<<Z_STEP_BIT)) // All step bits
-  #define DIRECTION_MASK ((1<<X_DIRECTION_BIT)|(1<<Y_DIRECTION_BIT)|(1<<Z_DIRECTION_BIT)) // All direction bits
-  #define STEPPING_MASK (STEP_MASK | DIRECTION_MASK) // All stepping-related bits (step/direction)
+  #define STEPPING_DDR       DDRC
+  #define STEPPING_PORT      PORTC
+  #define X_STEP_BIT         5  
+  #define Y_STEP_BIT         3  
+  #define X_DIRECTION_BIT    4  
+  #define Y_DIRECTION_BIT    2  
+  #ifndef NO_Z_AXIS
+      #define Z_STEP_BIT         6  
+      #define Z_DIRECTION_BIT    7  
+      #define STEP_MASK ((1<<X_STEP_BIT)|(1<<Y_STEP_BIT)|(1<<Z_STEP_BIT)) // All step bits
+      #define DIRECTION_MASK ((1<<X_DIRECTION_BIT)|(1<<Y_DIRECTION_BIT)|(1<<Z_DIRECTION_BIT)) // All direction bits
+      #define STEPPING_MASK (STEP_MASK | DIRECTION_MASK) // All stepping-related bits (step/direction)
+  #else
+      #define STEP_MASK ((1<<X_STEP_BIT)|(1<<Y_STEP_BIT)) // All step bits
+      #define DIRECTION_MASK ((1<<X_DIRECTION_BIT)|(1<<Y_DIRECTION_BIT)) // All direction bits
+      #define STEPPING_MASK (STEP_MASK | DIRECTION_MASK) // All stepping-related bits (step/direction)
+  #endif
 
   #define STEPPERS_DISABLE_DDR    DDRD
   #define STEPPERS_DISABLE_PORT   PORTD
@@ -199,12 +207,18 @@
   #define LIMIT_PIN       PINC
   #define LIMIT_PORT      PORTC
   #define X_LIMIT_BIT     1  
-  #define Y_LIMIT_BIT     2  
-  #define Z_LIMIT_BIT     3  
+  #define Y_LIMIT_BIT     0   
+  #ifndef NO_Z_AXIS
+    #define Z_LIMIT_BIT     1  // we have no limit z - so we set it to this one here..
+  #endif
   #define LIMIT_INT       PCIE1  // Pin change interrupt enable pin
   #define LIMIT_INT_vect  PCINT1_vect 
   #define LIMIT_PCMSK     PCMSK1 // Pin change interrupt register
-  #define LIMIT_MASK ((1<<X_LIMIT_BIT)|(1<<Y_LIMIT_BIT)|(1<<Z_LIMIT_BIT)) // All limit bits
+  #ifndef NO_Z_AXIS
+    #define LIMIT_MASK ((1<<X_LIMIT_BIT)|(1<<Y_LIMIT_BIT)|(1<<Z_LIMIT_BIT)) // All limit bits
+  #else
+    #define LIMIT_MASK ((1<<X_LIMIT_BIT)|(1<<Y_LIMIT_BIT)) // All limit bits
+  #endif
 
   #define SPINDLE_ENABLE_DDR   DDRB
   #define SPINDLE_ENABLE_PORT  PORTB
@@ -231,9 +245,9 @@
   #define PINOUT_DDR       DDRD
   #define PINOUT_PIN       PIND
   #define PINOUT_PORT      PORTD
-  #define PIN_RESET        5  // Uno Analog Pin 0
-  #define PIN_FEED_HOLD    6  // Uno Analog Pin 1
-  #define PIN_CYCLE_START  7  // Uno Analog Pin 2
+  #define PIN_RESET        2  // Uno Analog Pin 0 // FF disabled for now
+  #define PIN_FEED_HOLD    2  // Uno Analog Pin 1
+  #define PIN_CYCLE_START  2  // Uno Analog Pin 2
   #define PINOUT_INT       PCIE2  // Pin change interrupt enable pin
   #define PINOUT_INT_vect  PCINT2_vect
   #define PINOUT_PCMSK     PCMSK2 // Pin change interrupt register
@@ -241,7 +255,7 @@
 
   #define LASER_DDR  DDRD
   #define LASER_PORT PORTB 
-  #define LASER_PIN 5 // d 13 
+  #define LASER_PIN 5 // d 9 
   #define LASER_MASK ((1<<LASER_PIN))
 
   #define NORMALY_CLOSED_LIMIT_PINS

@@ -142,7 +142,7 @@ static void homing_cycle(uint8_t cycle_mask, int8_t pos_dir, bool invert_pin, fl
   if (!pos_dir) { out_bits0 ^= DIRECTION_MASK; }   // Invert bits, if negative dir.
   if (LIMIT_DDR == STEPPING_DDR) // when stepper and limits share a pin, this becomes necessary
   {
-      out_bits0 |= LIMIT_MASK;
+      out_bits0 |= LIMIT_MASK; // so that the pull up on the limits is still on.
   }
   
   // Initialize stepping variables
