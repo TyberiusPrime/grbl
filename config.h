@@ -28,6 +28,7 @@
 #ifndef config_h
 #define config_h
 
+
 // Default settings. Used when resetting EEPROM. Change to desired name in defaults.h
 #define DEFAULTS_GENERIC
 
@@ -37,6 +38,10 @@
 // Default pin mappings. Grbl officially supports the Arduino Uno only. Other processor types
 // may exist from user-supplied templates or directly user-defined in pin_map.h
 #define PIN_MAP_TP
+
+//set this if you do not have a z-axis
+#define NO_Z_AXIS 
+#define INVERT_LASER
 
 // Define runtime command special characters. These characters are 'picked-off' directly from the
 // serial read data stream and are not passed to the grbl line execution parser. Select characters

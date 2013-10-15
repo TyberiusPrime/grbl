@@ -140,6 +140,7 @@ inline static uint8_t iterate_trapezoid_cycle_counter()
   }
 }          
 
+
 // "The Stepper Driver Interrupt" - This timer interrupt is the workhorse of Grbl. It is executed at the rate set with
 // config_step_timer. It pops blocks from the block_buffer and executes them by pulsing the stepper pins appropriately. 
 // It is supported by The Stepper Port Reset Interrupt which it uses to reset the stepper port after each pulse. 
@@ -184,6 +185,15 @@ ISR(TIMER1_COMPA_vect)
       st.counter_z = st.counter_x;
       st.event_count = current_block->step_event_count;
       st.step_events_completed = 0;     
+      if (current_block->laser_intensity) { 
+          TCCR0A = (1<<COM0B1) | (1<< WGM01) | (1<<WGM00); // non inverting pwm on pin ocr0b, fast pwm mode for timer0 - that's digital pin 9
+          OCR0B = current_block->laser_intensity; //that's the new value for the laser
+      }
+      else
+      {
+          TCCR0A = (1<< WGM01) | (1<<WGM00); // disconnect the timer0 pin b
+      }
+      
     } else {
       st_go_idle();
       bit_true(sys.execute,EXEC_CYCLE_STOP); // Flag main program for cycle end
@@ -191,6 +201,7 @@ ISR(TIMER1_COMPA_vect)
   } 
 
   if (current_block != NULL) {
+  
     // Execute step displacement profile by bresenham line algorithm
     out_bits = current_block->direction_bits;
     st.counter_x += current_block->steps_x;
@@ -216,7 +227,39 @@ ISR(TIMER1_COMPA_vect)
           else { sys.position[Z_AXIS]++; }
         }
     #endif
+
+    // we moved. Now let's check the laser.
+    if (current_block->squared_distance_between_laser_pulses) {
+       uint8_t fire_laser = 0;
+        if ((current_block->squared_distance_between_laser_pulses == 1)) {
+            fire_laser = 1;
+        }
+        else {
+            int32_t distance_x_since_last_laser = sys.position[X_AXIS] - sys.last_laser_x;
+            int32_t distance_y_since_last_laser = sys.position[Y_AXIS] - sys.last_laser_y;
+            // prevent overflows.
+            if (distance_x_since_last_laser > 40000) { distance_x_since_last_laser = 40000;}
+            if ( distance_y_since_last_laser > 40000) { distance_y_since_last_laser = 40000;}
+            uint32_t distance_since_last_fire_squared = distance_x_since_last_laser  * distance_x_since_last_laser  + distance_y_since_last_laser * distance_y_since_last_laser;
+            if (distance_since_last_fire_squared >= current_block->squared_distance_between_laser_pulses) {
+                fire_laser = 1;
+                // record for the next time
+                sys.last_laser_x = sys.position[X_AXIS];
+                sys.last_laser_y = sys.position[Y_AXIS];
+            }
+        if (fire_laser) {
+            #ifdef INVERT_LASER
+                LASER_PORT = (LASER_PORT & ~LASER_MASK); // fire the laser by pulling it to ground
+            #else
+                LASER_PORT |= LASER_MASK; // fire the laser
+            #endif
+            OCR0A = (TCNT0 + (int)trunc(TICKS_PER_MICROSECOND * 1000 /  256 * 3)) % 255; // set up timer 0 to disable the laser in approximatly 3ms
+            TIMSK0 |= (1<<OCIE0A); // activate interrupt for compare to ocr0a
+            }
+        }
     }
+//    else
+ //       LASER_PORT = (LASER_PORT & ~LASER_MASK);
     
     st.step_events_completed++; // Iterate step events
 
@@ -328,6 +371,18 @@ ISR(TIMER2_OVF_vect)
   TCCR2B = 0; // Disable Timer2 to prevent re-entering this interrupt when it's not needed. 
 }
 
+// This interrupt is set up by ISR_TIMER1_COMPAREA, when it sets the laser pin.
+// it resets the laser after the appropriate pluse time.
+// OCR0A compare match
+ISR (TIMER0_COMPA_vect) {
+    #ifndef INVERT_LASER
+        LASER_PORT = (LASER_PORT & ~LASER_MASK);
+    #else
+        LASER_PORT |= LASER_MASK; // 
+    #endif
+    //TCCR0B = 0; // disable this timer when it's not needed
+    TIMSK0 = TIMSK0 & ~(1<<OCIE0A); // disable this *interrupt* when it is not needed
+}
 #ifdef STEP_PULSE_DELAY
   // This interrupt is used only when STEP_PULSE_DELAY is enabled. Here, the step pulse is
   // initiated after the STEP_PULSE_DELAY time period has elapsed. The ISR TIMER2_OVF interrupt
@@ -356,7 +411,13 @@ void st_init()
   STEPPING_DDR |= STEPPING_MASK;
   STEPPING_PORT = (STEPPING_PORT & ~STEPPING_MASK) | settings.invert_mask;
   STEPPERS_DISABLE_DDR |= 1<<STEPPERS_DISABLE_BIT;
-
+  LASER_DDR |= LASER_MASK;
+  #ifndef INVERT_LASER
+        LASER_PORT = (LASER_PORT & ~LASER_MASK);
+    #else
+        LASER_PORT |= LASER_MASK; // 
+    #endif
+    
   // waveform generation = 0100 = CTC
   TCCR1B &= ~(1<<WGM13);
   TCCR1B |=  (1<<WGM12);
@@ -374,6 +435,12 @@ void st_init()
   #ifdef STEP_PULSE_DELAY
     TIMSK2 |= (1<<OCIE2A); // Enable Timer2 Compare Match A interrupt
   #endif
+
+  //configure timer0
+  OCR0B = 128; // by default, turn the laser off
+  DDRD |= (1<<5);
+  TCCR0A = (1<<COM0B1) | (1<< WGM01) | (1<<WGM00); // non inverting pwm on pin ocr0b, fast pwm mode for timer0 - that's digital pin 9
+  TCCR0B = (1<<CS02); // Begin timer0. Full speed, 1/256 prescaler. We never turn that timer off, which will allow me to measure PWM... this also gives us a pwm of about 30khz...
 
   // Start in the idle state, but first wake up to check for keep steppers enabled option.
   st_wake_up();

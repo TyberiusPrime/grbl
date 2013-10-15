@@ -47,7 +47,7 @@
 // However, this keeps the memory requirements lower since it doesn't have to call and hold two 
 // plan_buffer_lines in memory. Grbl only has to retain the original line input variables during a
 // backlash segment(s).
-void mc_line(float x, float y, float z, float feed_rate, uint8_t invert_feed_rate)
+void mc_line(float x, float y, float z, float feed_rate, uint8_t invert_feed_rate, uint32_t squared_distance_between_laser_pulses, uint8_t laser_intensity)
 {
   // TODO: Perform soft limit check here. Just check if the target x,y,z values are outside the 
   // work envelope. Should be straightforward and efficient. By placing it here, rather than in 
@@ -69,7 +69,7 @@ void mc_line(float x, float y, float z, float feed_rate, uint8_t invert_feed_rat
     protocol_execute_runtime(); // Check for any run-time commands
     if (sys.abort) { return; } // Bail, if system abort.
   } while ( plan_check_full_buffer() );
-  plan_buffer_line(x, y, z, feed_rate, invert_feed_rate);
+  plan_buffer_line(x, y, z, feed_rate, invert_feed_rate, squared_distance_between_laser_pulses, laser_intensity);
   
   // If idle, indicate to the system there is now a planned block in the buffer ready to cycle 
   // start. Otherwise ignore and continue on.
@@ -94,7 +94,7 @@ void mc_line(float x, float y, float z, float feed_rate, uint8_t invert_feed_rat
 // The arc is approximated by generating a huge number of tiny, linear segments. The length of each 
 // segment is configured in settings.mm_per_arc_segment.  
 void mc_arc(float *position, float *target, float *offset, uint8_t axis_0, uint8_t axis_1, 
-  uint8_t axis_linear, float feed_rate, uint8_t invert_feed_rate, float radius, uint8_t isclockwise)
+  uint8_t axis_linear, float feed_rate, uint8_t invert_feed_rate, float radius, uint8_t isclockwise, uint32_t squared_distance_between_laser_pulses, uint8_t laser_intensity)
 {      
   float center_axis0 = position[axis_0] + offset[axis_0];
   float center_axis1 = position[axis_1] + offset[axis_1];
@@ -184,13 +184,13 @@ void mc_arc(float *position, float *target, float *offset, uint8_t axis_0, uint8
     arc_target[axis_0] = center_axis0 + r_axis0;
     arc_target[axis_1] = center_axis1 + r_axis1;
     arc_target[axis_linear] += linear_per_segment;
-    mc_line(arc_target[X_AXIS], arc_target[Y_AXIS], arc_target[Z_AXIS], feed_rate, invert_feed_rate);
+    mc_line(arc_target[X_AXIS], arc_target[Y_AXIS], arc_target[Z_AXIS], feed_rate, invert_feed_rate, squared_distance_between_laser_pulses, laser_intensity);
     
     // Bail mid-circle on system abort. Runtime command check already performed by mc_line.
     if (sys.abort) { return; }
   }
   // Ensure last segment arrives at target location.
-  mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], feed_rate, invert_feed_rate);
+  mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], feed_rate, invert_feed_rate, squared_distance_between_laser_pulses, laser_intensity);
 }
 
 
@@ -224,7 +224,7 @@ void mc_go_home()
 
   // The machine should now be homed and machine zero has been located. Upon completion, 
   // reset system position and sync internal position vectors.
-  clear_vector_float(sys.position); // Set machine zero
+  clear_vector_float((void*) sys.position); // Set machine zero
   sys_sync_current_position();
   sys.state = STATE_IDLE; // Set system state to IDLE to complete motion and indicate homed.
   
@@ -248,13 +248,12 @@ void mc_go_home()
   }
 #endif
   mc_line(x_dir*settings.homing_pulloff, y_dir*settings.homing_pulloff, 
-          z_dir*settings.homing_pulloff, settings.homing_seek_rate, false);
 #ifndef NO_Z_AXIS
           z_dir*settings.homing_pulloff
 #else
           0
 #endif
-          , settings.homing_seek_rate, false, 0);
+          , settings.homing_seek_rate, false, 0, 0);
   st_cycle_start(); // Move it. Nothing should be in the buffer except this motion. 
   plan_synchronize(); // Make sure the motion completes.
   

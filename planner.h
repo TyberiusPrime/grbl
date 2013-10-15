@@ -21,6 +21,7 @@
 
 #ifndef planner_h
 #define planner_h
+#include "config.h"
                  
 // The number of linear motions that can be in the plan at any give time
 #ifndef BLOCK_BUFFER_SIZE
@@ -33,7 +34,10 @@ typedef struct {
 
   // Fields used by the bresenham algorithm for tracing the line
   uint8_t  direction_bits;            // The direction bit set for this block (refers to *_DIRECTION_BIT in config.h)
-  uint32_t steps_x, steps_y, steps_z; // Step count along each axis
+  uint32_t steps_x, steps_y;
+#ifndef NO_Z_AXIS
+  uint32_t steps_z; // Step count along each axis
+#endif
   int32_t  step_event_count;          // The number of step events required to complete this block
 
   // Fields used by the motion planner to manage acceleration
@@ -52,6 +56,9 @@ typedef struct {
   uint32_t decelerate_after;          // The index of the step event on which to start decelerating
   uint32_t nominal_rate;              // The nominal step rate for this block in step_events/minute
 
+  //settings for the laser
+  uint8_t laser_intensity;          //PWM comparison value for the Laser. 0 -> laser off
+  uint32_t squared_distance_between_laser_pulses;  // the square of the distance between laser pulses, in steps^2. 0 if the laser is off
 } block_t;
       
 // Initialize the motion plan subsystem      
@@ -60,7 +67,7 @@ void plan_init();
 // Add a new linear movement to the buffer. x, y and z is the signed, absolute target position in 
 // millimaters. Feed rate specifies the speed of the motion. If feed rate is inverted, the feed
 // rate is taken to mean "frequency" and would complete the operation in 1/feed_rate minutes.
-void plan_buffer_line(float x, float y, float z, float feed_rate, uint8_t invert_feed_rate);
+void plan_buffer_line(float x, float y, float z, float feed_rate, uint8_t invert_feed_rate, uint32_t squared_distance_between_laser_pulses, uint8_t laser_intensity);
 
 // Called when the current block is no longer needed. Discards the block and makes the memory
 // availible for new blocks.

@@ -343,7 +343,8 @@ void plan_synchronize()
 // All position data passed to the planner must be in terms of machine position to keep the planner 
 // independent of any coordinate system changes and offsets, which are handled by the g-code parser.
 // NOTE: Assumes buffer is available. Buffer checks are handled at a higher level by motion_control.
-void plan_buffer_line(float x, float y, float z, float feed_rate, uint8_t invert_feed_rate) 
+// squared_distance_between_laser_pulses is in steps^2.
+void plan_buffer_line(float x, float y, float z, float feed_rate, uint8_t invert_feed_rate, uint32_t squared_distance_between_laser_pulses, uint8_t laser_intensity) 
 {
   // Prepare to set up new block
   block_t *block = &block_buffer[block_buffer_head];
@@ -365,8 +366,12 @@ void plan_buffer_line(float x, float y, float z, float feed_rate, uint8_t invert
   // Number of steps for each axis
   block->steps_x = labs(target[X_AXIS]-pl.position[X_AXIS]);
   block->steps_y = labs(target[Y_AXIS]-pl.position[Y_AXIS]);
+#ifndef NO_Z_AXIS
   block->steps_z = labs(target[Z_AXIS]-pl.position[Z_AXIS]);
   block->step_event_count = max(block->steps_x, max(block->steps_y, block->steps_z));
+#else
+  block->step_event_count = max(block->steps_x, block->steps_y);
+#endif
 
   // Bail if this is a zero-length block
   if (block->step_event_count == 0) { return; };
@@ -462,14 +467,19 @@ void plan_buffer_line(float x, float y, float z, float feed_rate, uint8_t invert
   if (block->nominal_speed <= v_allowable) { block->nominal_length_flag = true; }
   else { block->nominal_length_flag = false; }
   block->recalculate_flag = true; // Always calculate trapezoid for new block
-
+  
+// store laser status
+  block->laser_intensity = laser_intensity;
+  block->squared_distance_between_laser_pulses = squared_distance_between_laser_pulses;
+  
   // Update previous path unit_vector and nominal speed
   memcpy(pl.previous_unit_vec, unit_vec, sizeof(unit_vec)); // pl.previous_unit_vec[] = unit_vec[]
   pl.previous_nominal_speed = block->nominal_speed;
-  
+ 
   // Update buffer head and next buffer head indices
   block_buffer_head = next_buffer_head;  
   next_buffer_head = next_block_index(block_buffer_head);
+
   
   // Update planner position
   memcpy(pl.position, target, sizeof(target)); // pl.position[] = target[]

@@ -1,8 +1,12 @@
 Changes from parent
 ------------
 * This is an adaption of GRBL for laser cutting.
-* Target features are Pulses-per-inch control of the laser and raster engraving
+* features Pulses-per-inch control of the laser (Q0.1 Means 0.1mm between pulses, there is an upper limit around 25mm (depends on your steps/mm))
+* laser intensity control via pwm (S0-S255). (Both S and Q need to be specified on each move for the laser to fire)
+
+and raster engraving
 * so far, all we have is an adaptation to my hardware (arduino nano und weird adapter to stepstick stepper drivers)
+* support for normaly closed limit switches (opto endstops)
 
 #Grbl - An embedded g-code interpreter and motion-controller for the Arduino/AVR328 microcontroller
 ------------

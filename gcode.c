@@ -207,6 +207,8 @@ uint8_t gc_execute_line(char *line)
      for different commands. Each will be converted to their proper value upon execution. */
   float p = 0, r = 0;
   uint8_t l = 0;
+  uint32_t squared_distances_between_laser_pulses = 0;
+  uint8_t laser_intensity = 0;
   char_counter = 0;
   while(next_statement(&letter, &value, line, &char_counter)) {
     switch(letter) {
@@ -223,8 +225,20 @@ uint8_t gc_execute_line(char *line)
       case 'L': l = trunc(value); break;
       case 'P': p = value; break;                    
       case 'R': r = to_millimeters(value); break;
-      case 'S': 
-        if (value < 0) { FAIL(STATUS_INVALID_STATEMENT); } // Cannot be negative
+      case 'S': //spindle speed -> laser power
+            if ((value < 0) || (value > 255)) { FAIL(STATUS_INVALID_STATEMENT); } // Cannot be negative
+            laser_intensity = trunc(value);
+            break;
+      case 'Q':  //pulses per inch setting -> how often do we turn on the laser?
+        if (value == 0) { squared_distances_between_laser_pulses = 0; }
+        else
+        {
+            // Q is intepreted as a float, specifying the distance between laser pulses in mm.
+            // note that below a certain distance at a given speed, this translates into always on.
+            uint32_t distance_between_pulses = to_millimeters(value)  * settings.steps_per_mm[X_AXIS];  // assumes that X and Y has the same stepping!
+            if (distance_between_pulses > 40000) { distance_between_pulses = 40000;} // limit to a level where the square will fit into 2**31. - that's roughly once per inch at 1600 steps/mm - should be plenty!
+            squared_distances_between_laser_pulses = distance_between_pulses * distance_between_pulses;
+        }
         // TBD: Spindle speed not supported due to PWM issues, but may come back once resolved.
         // gc.spindle_speed = value;
         break;
@@ -325,7 +339,7 @@ uint8_t gc_execute_line(char *line)
             target[i] = gc.position[i];
           }
         }
-        mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], settings.default_seek_rate, false);
+        mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], settings.default_seek_rate, false, 0, 0);
       }
       // Retreive G28/30 go-home position data (in machine coordinates) from EEPROM
       float coord_data[N_AXIS];
@@ -334,7 +348,7 @@ uint8_t gc_execute_line(char *line)
       } else {
         if (!settings_read_coord_data(SETTING_INDEX_G28 ,coord_data)) { return(STATUS_SETTING_READ_FAIL); }     
       }      
-      mc_line(coord_data[X_AXIS], coord_data[Y_AXIS], coord_data[Z_AXIS], settings.default_seek_rate, false); 
+      mc_line(coord_data[X_AXIS], coord_data[Y_AXIS], coord_data[Z_AXIS], settings.default_seek_rate, false, 0, 0); 
       memcpy(gc.position, coord_data, sizeof(coord_data)); // gc.position[] = coord_data[];
       axis_words = 0; // Axis words used. Lock out from motion modes by clearing flags.
       break;
@@ -407,7 +421,7 @@ uint8_t gc_execute_line(char *line)
         break;
       case MOTION_MODE_SEEK:
         if (!axis_words) { FAIL(STATUS_INVALID_STATEMENT);} 
-        else { mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], settings.default_seek_rate, false); }
+        else { mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], settings.default_seek_rate, false, 0, 0); }
         break;
       case MOTION_MODE_LINEAR:
         // TODO: Inverse time requires F-word with each statement. Need to do a check. Also need
@@ -415,8 +429,15 @@ uint8_t gc_execute_line(char *line)
         // and after an inverse time move and then check for non-zero feed rate each time. This
         // should be efficient and effective.
         if (!axis_words) { FAIL(STATUS_INVALID_STATEMENT);} 
-        else { mc_line(target[X_AXIS], target[Y_AXIS], target[Z_AXIS], 
-          (gc.inverse_feed_rate_mode) ? inverse_feed_rate : gc.feed_rate, gc.inverse_feed_rate_mode); }
+        else { 
+            mc_line(
+                    target[X_AXIS], target[Y_AXIS], target[Z_AXIS], 
+                    (gc.inverse_feed_rate_mode) ? inverse_feed_rate : gc.feed_rate, 
+                    gc.inverse_feed_rate_mode,
+                    squared_distances_between_laser_pulses, 
+                    laser_intensity
+                    );
+        }
         break;
       case MOTION_MODE_CW_ARC: case MOTION_MODE_CCW_ARC:
         // Check if at least one of the axes of the selected plane has been specified. If in center 
@@ -530,7 +551,7 @@ uint8_t gc_execute_line(char *line)
           // Trace the arc
           mc_arc(gc.position, target, offset, gc.plane_axis_0, gc.plane_axis_1, gc.plane_axis_2,
             (gc.inverse_feed_rate_mode) ? inverse_feed_rate : gc.feed_rate, gc.inverse_feed_rate_mode,
-            r, isclockwise);
+            r, isclockwise, squared_distances_between_laser_pulses, laser_intensity);
         }            
         break;
     }
